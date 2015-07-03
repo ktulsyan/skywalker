@@ -1,0 +1,10 @@
+<ContactsAccountType
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <ContactsDataKind
+        android:mimeType="android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE"
+        android:icon="@drawable/ic_launcher"
+        android:summaryColumn="Lets see"
+        android:detailColumn="What do we have here">
+
+    </ContactsDataKind>
+</ContactsAccountType>
