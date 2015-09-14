@@ -18,7 +18,6 @@ package com.example.kshitijt.contactstest;
 
 import android.app.Activity;
 import android.content.ContentProviderOperation;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
@@ -26,8 +25,6 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.ContactsContract;
-import android.provider.ContactsContract.CommonDataKinds.Email;
-import android.provider.ContactsContract.CommonDataKinds.Phone;
 import android.provider.ContactsContract.Contacts;
 import android.provider.ContactsContract.Data;
 import android.provider.ContactsContract.RawContacts;
@@ -41,16 +38,18 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 
-import javax.crypto.spec.RC2ParameterSpec;
-
 public class ContactsIntegrationActivity extends Activity {
 
     // Request code for the contact picker activity
     private static final int PICK_CONTACT_REQUEST = 1;
+    private static final String CALLOUT_MIME_TYPE = "vnd.android.cursor.item/vnd.com.example.kshitijt.contactstest.android.callout.profile";
+    private static final String CALLBACK_MIME_TYPE = "vnd.android.cursor.item/vnd.com.example.kshitijt.contactstest.android.callback.profile";
 
     private TextView mResult;
     private String mEmail;
 
+    private String mContactId;
+    private String mContactNameRawContactId;
     private String mRawContactId;
     private String mDataId;
 
@@ -96,6 +95,7 @@ public class ContactsIntegrationActivity extends Activity {
          */
         AsyncTask<Uri, Void, Boolean> task = new AsyncTask<Uri, Void, Boolean>() {
 
+
             @Override
             protected Boolean doInBackground(Uri... uris) {
                 Log.v("Retreived ContactURI", uris[0].toString());
@@ -132,8 +132,9 @@ public class ContactsIntegrationActivity extends Activity {
 
                 Log.v("Cursor", mContactCursor.toString());
 
-                String mContactId = getCursorString(mContactCursor,
-                        ContactsContract.Contacts._ID);
+                mContactId = getCursorString(mContactCursor,
+                        Contacts._ID);
+                mContactNameRawContactId = getCursorString(mContactCursor, Contacts.NAME_RAW_CONTACT_ID);
 
                 Cursor mRawContactCursor = getContentResolver().query(
                         RawContacts.CONTENT_URI,
@@ -174,88 +175,6 @@ public class ContactsIntegrationActivity extends Activity {
     }
 
 
-    private Boolean doesContactContainHomeEmail(Uri contactUri) {
-        boolean returnValue = false;
-        Cursor mContactCursor = getContentResolver().query(contactUri,
-                null,
-                null,
-                null,
-                null);
-        Log.v("Contact", "Got Contact Cursor");
-
-        try {
-            if (mContactCursor.moveToFirst()) {
-
-                Log.v("Cursor", mContactCursor.toString());
-
-                String mContactId = getCursorString(mContactCursor,
-                        ContactsContract.Contacts._ID);
-
-                Cursor mRawContactCursor = getContentResolver().query(
-                        RawContacts.CONTENT_URI,
-                        null,
-                        Data.CONTACT_ID + " = ?",
-                        new String[]{mContactId},
-                        null);
-
-                Log.v("RawContact", "Got RawContact Cursor");
-
-                try {
-                    ArrayList<String> mRawContactIds = new ArrayList<String>();
-                    while (mRawContactCursor.moveToNext()) {
-                        String rawId = getCursorString(mRawContactCursor, RawContacts._ID);
-                        Log.v("RawContact", "ID: " + rawId);
-                        String data;
-                        data = getCursorString(mRawContactCursor, RawContacts.ACCOUNT_TYPE);
-                        Log.v("RawContactAccountType:", data == null ? "\n" : data);
-                        data = getCursorString(mRawContactCursor, RawContacts.DATA_SET);
-                        Log.v("RawContactDS:", data == null ? "\n" : data);
-                        data = getCursorString(mRawContactCursor, RawContacts.SOURCE_ID);
-                        Log.v("RawContactSourceId:", data == null ? "\n" : data);
-
-                        mRawContactIds.add(rawId);
-                    }
-
-                    for (String rawId : mRawContactIds) {
-                        // Make sure the "last checked" RawContactId is set locally for use in insert & update.
-                        mRawContactId = rawId;
-                        Cursor mDataCursor = getContentResolver().query(
-                                Data.CONTENT_URI,
-                                null,
-                                Data.RAW_CONTACT_ID + " = ? AND " + Data.MIMETYPE + " = ? AND " + Phone.TYPE + " = ? ",
-                                new String[]{mRawContactId, Phone.CONTENT_ITEM_TYPE, String.valueOf(Phone.TYPE_OTHER)},
-                                null);
-
-                        if (mDataCursor.getCount() > 0) {
-                            mDataCursor.moveToFirst();
-                            mDataId = getCursorString(mDataCursor, Data._ID);
-                            Log.v("Data", "Found data item with MIMETYPE and EMAIL.TYPE");
-                            mDataCursor.close();
-                            returnValue = true;
-                            break;
-                        } else {
-                            Log.v("Data", "Data doesn't contain MIMETYPE and EMAIL.TYPE");
-                            mDataCursor.close();
-                        }
-                        returnValue = false;
-                    }
-                } finally {
-                    mRawContactCursor.close();
-                }
-            }
-        } catch (Exception e) {
-            Log.w("UpdateContact", e.getMessage());
-            for (StackTraceElement ste : e.getStackTrace()) {
-                Log.w("UpdateContact", "\t" + ste.toString());
-            }
-            throw new RuntimeException();
-        } finally {
-            mContactCursor.close();
-        }
-
-        return returnValue;
-    }
-
     private static String getCursorString(Cursor cursor, String columnName) {
         int index = cursor.getColumnIndex(columnName);
         if (index != -1) return cursor.getString(index);
@@ -265,28 +184,45 @@ public class ContactsIntegrationActivity extends Activity {
     public void insertTestContact() {
         try {
             ArrayList<ContentProviderOperation> ops = new ArrayList<ContentProviderOperation>();
+            String fname = "";
+            String lname = "";
+
+            Cursor rawContactCursor = getContentResolver().query(RawContacts.CONTENT_URI,
+                    null,
+                    RawContacts._ID + " = ?",
+                    new String[]{mContactNameRawContactId},
+                    null);
+
+            if (rawContactCursor.moveToFirst()) {
+                String[] displayName = getCursorString(rawContactCursor, RawContacts.DISPLAY_NAME_PRIMARY).split(" ");
+                if (displayName.length > 1) {
+                    fname = displayName[0];
+                    lname = displayName[displayName.length - 1];
+                } else {
+                    fname = displayName[0];
+                    lname = "";
+                }
+            }
 
             ops.add(ContentProviderOperation.newInsert(RawContacts.CONTENT_URI)
                     .withValue(RawContacts.ACCOUNT_TYPE, ContactsTestAuthenticator.ACCOUNT_TYPE)
                     .withValue(RawContacts.ACCOUNT_NAME, "kt")
-                    .withValue(RawContacts.SOURCE_ID, "1")
                     .build());
 
             ops.add(ContentProviderOperation.newInsert(Data.CONTENT_URI)
                     .withValueBackReference(RawContacts.Data.RAW_CONTACT_ID, 0)
-                    .withValue(Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-                    .withValue(Data.DATA1, "TestContact")
-                    .withValue(Data.IS_READ_ONLY, "1")
+                    .withValue(Data.MIMETYPE, CALLOUT_MIME_TYPE)
+                    .withValue(Data.DATA3, "+911234567890")
+                    .withValue(Data.DATA4, "CALLOUT Detail")
                     .build());
 
             ops.add(ContentProviderOperation.newInsert(Data.CONTENT_URI)
                     .withValueBackReference(RawContacts.Data.RAW_CONTACT_ID, 0)
-                    .withValue(Data.MIMETYPE, Phone.CONTENT_ITEM_TYPE)
-                    .withValue(Phone.TYPE, Phone.TYPE_CALLBACK)
-                    .withValue(Data.DATA1, "+911234567890")
-                    .withValue(Data.IS_READ_ONLY, "1")
+                    .withValue(Data.MIMETYPE, CALLBACK_MIME_TYPE)
+                    .withValue(Data.DATA3, "+911234567891")
+                    .withValue(Data.DATA4, "CALLBACK Detail")
+                    .withYieldAllowed(true)
                     .build());
-
 
             getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
             mResult.setText("Inserted");
@@ -307,18 +243,19 @@ public class ContactsIntegrationActivity extends Activity {
         try {
             Cursor dataCursor = getContentResolver().query(Data.CONTENT_URI,
                     null,
-                    Data.RAW_CONTACT_ID + " = ? AND " + Data.MIMETYPE + " = ? AND " + Phone.TYPE + " = ? " ,
-                    new String[] {mRawContactId, Phone.CONTENT_ITEM_TYPE, String.valueOf(Phone.TYPE_CALLBACK)},
+                    Data.RAW_CONTACT_ID + " = ? AND (" + Data.MIMETYPE + " = ? " + "OR " + Data.MIMETYPE + " = ? )",
+                    new String[]{mRawContactId, CALLOUT_MIME_TYPE, CALLBACK_MIME_TYPE},
                     null);
-            Log.v("Data","Found data cursor");
+            Log.v("Data", "Found data cursor");
             String dataId;
+            String mimeType;
 
-            if(!dataCursor.moveToFirst())
-            {
+            if (!dataCursor.moveToFirst()) {
                 throw new Exception("Data item no found");
-            }
-            else {
+            } else {
                 dataId = getCursorString(dataCursor, Data._ID);
+                mimeType = getCursorString(dataCursor, Data.MIMETYPE);
+
             }
 
 
@@ -327,9 +264,7 @@ public class ContactsIntegrationActivity extends Activity {
             ops.add(ContentProviderOperation.newUpdate(Data.CONTENT_URI)
                     .withSelection(Data.RAW_CONTACT_ID + " = ?", new String[]{mRawContactId})
                     .withSelection(Data._ID + " = ?", new String[]{dataId})
-                    .withValue(Data.MIMETYPE, Phone.CONTENT_ITEM_TYPE)
-                    .withValue(Phone.TYPE, String.valueOf(Phone.TYPE_CALLBACK))
-                    .withValue(Data.DATA1, mEmail)
+                    .withValue(Data.MIMETYPE, mimeType)
                     .build());
             getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
             mResult.setText("Deleted");

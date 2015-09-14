@@ -8,8 +8,11 @@
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <uses-permission android:name="android.permission.WRITE_CONTACTS"/>
     <uses-permission android:name="android.permission.AUTHENTICATE_ACCOUNTS"/>
+    <uses-permission android:name="android.permission.WRITE_SYNC_SETTINGS"/>
+    <uses-permission android:name="android.permission.READ_SYNC_SETTINGS"/>
 
     <application
+        android:name=".ContactsTestApplication"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name">
@@ -20,6 +23,11 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="vnd.android.cursor.item/vnd.com.example.kshitijt.contactstest.android.profile"/>
             </intent-filter>
         </activity>
 
@@ -39,11 +47,19 @@
             </meta-data>
         </service>
 
-        <provider
-            android:authorities="com.example.kshitijt.contactstest.provider"
-            android:name="com.example.kshitijt.contactstest.ContactsTestProvider"
-            android:syncable="true"
-            android:exported="false"/>
+        <service
+            android:name=".TestSyncService"
+            android:exported="true"
+            android:process=":sync">
+            <intent-filter>
+                <action android:name="android.content.SyncAdapter"/>
+            </intent-filter>
+            <meta-data android:name="android.content.SyncAdapter"
+                       android:resource="@xml/syncadapter" />
+            <meta-data android:name="android.provider.CONTACTS_STRUCTURE"
+                       android:resource="@xml/contacts" />
+        </service>
+
 
     </application>
 

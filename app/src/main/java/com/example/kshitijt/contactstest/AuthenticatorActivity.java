@@ -53,17 +53,8 @@ public class AuthenticatorActivity extends AccountAuthenticatorActivity {
                 final Account account = new Account(username, accountType);
                 accountManager.addAccountExplicitly(account, password, null);
 
-                ArrayList<ContentProviderOperation> ops = new ArrayList<>();
-                ops.add(ContentProviderOperation.newUpdate(ContactsContract.Settings.CONTENT_URI)
-                        .withSelection(ContactsContract.Settings.ACCOUNT_TYPE, new String[]{accountType})
-                        .withValue(ContactsContract.Settings.UNGROUPED_VISIBLE, "1")
-                        .build());
-
-                getContentResolver().applyBatch(ContactsContract.AUTHORITY, ops);
-
-
-                // Now we tell our caller, could be the Android Account Manager or even our own application
-                // that the process was successful
+                // Now we tell our caller, could be the Android Account Manager
+                // or even our own application that the process was successful
                 final Intent intent = new Intent();
                 intent.putExtra(AccountManager.KEY_ACCOUNT_NAME, username);
                 intent.putExtra(AccountManager.KEY_ACCOUNT_TYPE, accountType);
@@ -73,7 +64,7 @@ public class AuthenticatorActivity extends AccountAuthenticatorActivity {
             }
             catch (Exception e)
             {
-                Log.e("Update table",e.getMessage());
+                Log.e("Update table","error while adding account",e);
             }
         }
 
